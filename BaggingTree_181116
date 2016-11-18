@@ -1,0 +1,74 @@
+import numpy as np
+%pylab inline
+
+Xtr = np.loadtxt('data/train.csv',  delimiter=',', skiprows=1, usecols=range(2,14)) #date enlevée range(2,14)
+ytr = np.loadtxt('data/train.csv',  delimiter=',', skiprows=1, usecols=[14])
+Xte = np.loadtxt('data/test.csv',  delimiter=',', skiprows=1, usecols=range(2,14))
+
+from sklearn import cross_validation
+folds = cross_validation.StratifiedKFold(ytr, 15, shuffle=True)
+
+from sklearn import preprocessing
+
+def cross_validate_optimize(design_matrix, labels, classifier, cv_folds):
+    pred = np.zeros(labels.shape)
+    for tr, te in cv_folds:
+        # Restrict data to train/test folds
+        Xtr = design_matrix[tr, :]
+        ytr = labels[tr]
+        Xte = design_matrix[te, :]
+        #print Xtr.shape, ytr.shape, Xte.shape
+          
+        # Fit classifier
+                
+        scaler = preprocessing.StandardScaler() # create scaler
+        Xtr = scaler.fit_transform(Xtr) # fit the scaler to the training data and transform training data
+        Xte = scaler.transform(Xte) # transform test data
+        
+        classifier.fit(Xtr, ytr)
+        
+        # Print best parameter
+        print classifier.best_params_
+
+        # Predict probabilities (of belonging to +1 class) on test data
+        yte_pred = classifier.predict(Xte)
+        pred[te] = yte_pred  
+    return pred
+    
+from sklearn import grid_search
+from sklearn import ensemble
+param_grid = {'n_estimators': [10, 15, 20, 25, 30, 35, 40, 45, 50]}
+# TODO
+clf = grid_search.GridSearchCV(ensemble.BaggingRegressor(), param_grid)
+
+
+#from sklearn import tree
+#clf = tree.DecisionTreeRegressor()
+
+ypred_dt_bag_opt = cross_validate_optimize(Xtr, ytr, clf, folds)
+
+Xte = preprocessing.scale(Xte)
+
+
+LISTE = clf.predict(Xte)
+
+for k in range (len(LISTE)):
+    LISTE[k]=round(LISTE[k])
+import csv
+path='data/'
+fname='train.csv'
+fname2='test.csv'
+
+def output_csv(y_predicted):
+    y_output=[['Id','Prediction']]
+    y_index = np.loadtxt(path+fname2,  delimiter=',', skiprows=1, usecols=[0], dtype=np.int)
+    print(y_index)
+    for i in range(len(LISTE)):
+        y_output+=[[y_index[i],y_predicted[i]]]
+    print(y_output)
+    with open("output.csv", "w") as f:
+        writer = csv.writer(f)
+
+        writer.writerows(y_output)
+
+output_csv(LISTE)
